@@ -2,6 +2,22 @@
 
 复现下 Web3 上以往的攻击事件,学习 Web3 安全审计
 
+## 2023-01-12 ROE
+
+[ROE.exp.sol](./test/ROE.exp.sol)
+
+`forge test --match-path ./test/ROE.exp.sol -vvv`
+
+典型的闪电贷攻击,对于流动性较浅的池子,操控价格影响交易
+
+具体攻击步骤:
+
+![ROE_AttackSteps](./images/ROE_AttackSteps.jpeg)
+
+通过[Phalcon View](https://explorer.phalcon.xyz/tx/eth/**0x927b784148b60d5233e57287671cdf67d38e3e69e5b6d0ecacc7c1aeaa98985b)可以看到价格操控:
+
+![ROE_PhalconView](images/ROE_PhalconView.jpeg)
+
 ## 2023-01-10 BRA
 
 [BRA.exp.sol](./test/BRA.exp.sol)

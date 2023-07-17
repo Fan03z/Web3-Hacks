@@ -30,7 +30,8 @@ import "./interface.sol";
 // CertiK post-mortem : https://www.certik.com/resources/blog/28fMavD63CpZJOKOjb9DX3-nomad-bridge-exploit-incident-analysis
 
 contract Attacker is Test {
-    // 以太坊侧链Gnosisi上一地址: https://gnosisscan.io/address/0x7109709ECfa91a80626fF3989D68f67F5b1DD12D
+    // foundry的CheatCode是通过在特别指定的地址上(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D)调用特定函数来调用的
+    // 找了下好像是以太坊侧链Gnosisi上一地址: https://gnosisscan.io/address/0x7109709ECfa91a80626fF3989D68f67F5b1DD12D
     CheatCodes constant cheat =
         CheatCodes(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D);
     // Nomad ERC20代币桥合约(也是跨链代币锁仓位置)
