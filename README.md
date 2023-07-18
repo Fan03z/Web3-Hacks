@@ -2,6 +2,42 @@
 
 复现下 Web3 上以往的攻击事件,学习 Web3 安全审计
 
+- 2023
+
+  [2023-04-02 AllBridge](#2023-04-02-allbridge)
+
+  [2023-01-12 ROE](#2023-01-12-roe)
+
+  [2023-01-10 BRA](#2023-01-10-bra)
+
+- 2022
+
+  [2023-01-10 Nomad Bridge](#2022-08-01-nomadbridge)
+
+## 2023-04-02 AllBridge
+
+[Allbridge.exp.sol](./test/Allbridge.exp.sol)
+
+`forge test --match-path ./test/Allbridge.exp.sol -vvv`
+
+[Phalcon View](https://explorer.phalcon.xyz/tx/bsc/0x7ff1364c3b3b296b411965339ed956da5d17058f3164425ce800d64f1aef8210)
+
+闪电贷攻击,具体攻击步骤如下,也可以看[攻击分析](https://twitter.com/BeosinAlert/status/1642372700726505473)和[攻击总结](https://twitter.com/gbaleeeee/status/1642520517788966915):
+
+1. 通过闪电贷借到 750 万 BUSD
+
+   ![AllBridge_flashloan](images/AllBridge_flashloan.png)
+
+2. 兑换 200 万 BUSD 为 USDT,存 500 万 BUSD 入池子 (AllBridge 内对应受害池),再换 50 万 BUSD 为 USDT 和存 200 万 USDT 进池子,此时 Hacker 手上还剩 50 万 USDT
+
+3. 调用 AllBridge 池子 的 swap() 进行兑换,将 50 万 USDT 换为 BUSD (开始影响池子的比例平衡)
+
+4. 取出此前存入的 500 万 BUSD (池子代币比例失衡)
+
+5. 利用池子不平衡的兑换比例,用 4 万 BUSD 兑换 79 万的 USDT
+
+6. 最后取出那 200 万的 USDT,利用别的稳定币兑换平台换回 BUSD 并归还闪电贷,完成攻击
+
 ## 2023-01-12 ROE
 
 [ROE.exp.sol](./test/ROE.exp.sol)
