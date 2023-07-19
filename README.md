@@ -4,6 +4,8 @@
 
 - 2023
 
+  [2023-07-18 BNO](#2023-07-18-bno)
+
   [2023-04-02 AllBridge](#2023-04-02-allbridge)
 
   [2023-01-12 ROE](#2023-01-12-roe)
@@ -13,6 +15,24 @@
 - 2022
 
   [2023-01-10 Nomad Bridge](#2022-08-01-nomadbridge)
+
+---
+
+## 2023-07-18 BNO
+
+[BNO.exp.sol](./test/BNO.exp.sol)
+
+`forge test --match-path ./test/BNO.exp.sol -vvv`
+
+[Phalcon View](https://explorer.phalcon.xyz/tx/bsc/0x33fed54de490797b99b2fc7a159e43af57e9e6bdefc2c2d052dc814cfe0096b9)
+
+#### 漏洞
+
+漏洞在 BNO 质押逻辑上,质押 NFT 后再质押 BNO,这时再调用紧急提款 emergencyWithdraw() 抽出质押的 BNO,提款后清零债务和质押奖励(allstake 和 rewardDebt),但没清零 nftAddition 值,根据质押奖励计算公式,紧急提款后还会有不合理的质押奖励,这时再解质押 NFT,拿回 NFT 的同时得到不合理的质押奖励 BNO 代币
+
+Attacker 正是反复利用了这个质押逻辑漏洞,可以获得大量质押池中的 BNO 代币奖励
+
+![BNO_BUG](images/BNO_BUG.jpeg)
 
 ## 2023-04-02 AllBridge
 
@@ -96,3 +116,7 @@ process() 函数中的验证过程首先通过传入请求消息的哈希找到�
 [具体分析](https://github.com/SunWeb3Sec/DeFiHackLabs/tree/main/academy/onchain_debug/07_Analysis_nomad_bridge/)
 
 [具体漏洞分析](https://twitter.com/BlockSecTeam/status/1554335271964987395)
+
+---
+
+感谢 [DeFiHackLabs](https://github.com/SunWeb3Sec/DeFiHackLabs#20230718-bno---invalid-emergency-withdraw-mechanism) 提供分析学习
