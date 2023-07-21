@@ -6,6 +6,8 @@
 
   [2023-07-18 BNO](#2023-07-18-bno)
 
+  [2023-07-10 Arcadia Fiance](#2023-07-10-arcadia-fiance)
+
   [2023-04-02 AllBridge](#2023-04-02-allbridge)
 
   [2023-01-12 ROE](#2023-01-12-roe)
@@ -20,7 +22,7 @@
 
 ## 2023-07-18 BNO
 
-[BNO.exp.sol](./test/BNO.exp.sol)
+[BNO 攻击复现](./test/BNO.exp.sol)
 
 `forge test --match-path ./test/BNO.exp.sol -vvv`
 
@@ -34,9 +36,31 @@ Attacker 正是反复利用了这个质押逻辑漏洞,可以获得大量质押�
 
 ![BNO_BUG](images/BNO_BUG.jpeg)
 
+## 2023-07-10 Arcadia Fiance
+
+[Arcadia Fiance 攻击复现](./test/ArcadiaFi.exp.sol)
+
+`forge test --match-path ./test/ArcadiaFi.exp.sol -vvv`
+
+[Phalcon View](https://explorer.phalcon.xyz/tx/optimism/0xca7c1a0fde444e1a68a8c2b8ae3fb76ec384d1f7ae9a50d26f8bfdd37c7a0afe)
+
+#### 漏洞
+
+这次攻击属于重入攻击,但其本身不是那么直接的,而是比较间接的重入攻击
+
+Arcadia Fiance 是提供保证金协议的团队,这里面有些概念,首先个人可以根据工厂和自己选的代币种创建金库(Vault),然后可以向金库那抵押相应的代币,从而得到对应于抵押代币一定比例的可借贷数量
+
+但逻辑上有点问题,在调用 vaultManagementAction() 提取金库内所有财产时,本来是要对抵押资产进行检查的,但是同时调用金库的 liquidateVault() 清算金库的话,通过重入就可以将将全局变量 isTrustedCreditorSet 设为 false,而 vaultManagementAction() 检查抵押资产就是通过调用 getUsedMargin() 实现的,但当 isTrustedCreditorSet 为 false 时,就直接返回 0 了,这样就绕过了抵押资产的检查,就能连着借贷和抵押资产一起提取出来了
+
+具体函数上的漏洞逻辑:
+
+![ArcadiaFi_re-entry](images/ArcadiaFi_re-entry.jpeg)
+
+Attacker 也是抓住了这个漏洞,对 Arcadia Fiance 中的 WTH 和 USDC 两个币种的保证金池发动了攻击,从而不当得利
+
 ## 2023-04-02 AllBridge
 
-[Allbridge.exp.sol](./test/Allbridge.exp.sol)
+[AllBridge 攻击复现](./test/Allbridge.exp.sol)
 
 `forge test --match-path ./test/Allbridge.exp.sol -vvv`
 
@@ -60,7 +84,7 @@ Attacker 正是反复利用了这个质押逻辑漏洞,可以获得大量质押�
 
 ## 2023-01-12 ROE
 
-[ROE.exp.sol](./test/ROE.exp.sol)
+[ROE 攻击复现](./test/ROE.exp.sol)
 
 `forge test --match-path ./test/ROE.exp.sol -vvv`
 
@@ -76,7 +100,7 @@ Attacker 正是反复利用了这个质押逻辑漏洞,可以获得大量质押�
 
 ## 2023-01-10 BRA
 
-[BRA.exp.sol](./test/BRA.exp.sol)
+[BRA 攻击复现](./test/BRA.exp.sol)
 
 `forge test --match-path ./test/BRA.exp.sol -vvv`
 
@@ -90,7 +114,7 @@ Attacker 正是反复利用了这个质押逻辑漏洞,可以获得大量质押�
 
 ## 2022-08-01 NomadBridge
 
-[NomadBridge.exp.sol](./test/NomadBridge.exp.sol)
+[NomadBridge 攻击复现](./test/NomadBridge.exp.sol)
 
 `forge test --match-path ./test/NomadBridge.exp.sol -vvv`
 
