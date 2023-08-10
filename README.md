@@ -4,6 +4,8 @@
 
 - 2023
 
+  [2023-08-09 Earning Fram](#2023-8-9-earning-fram)
+
   [2023-07-21 Conic Finance](#2023-7-21-conic-finance)
 
   [2023-07-18 BNO](#2023-07-18-bno)
@@ -21,6 +23,45 @@
   [2023-01-10 Nomad Bridge](#2022-08-01-nomadbridge)
 
 ---
+
+## 2023-8-9 Earning Fram
+
+[Earning Fram 攻击复现](./test/EarningFram.exp.sol)
+
+`forge test --match-path ./test/EarningFram.exp.sol -vvv`
+
+EarningFram(EFVault) 项目就是常规的往里质押 ETH,然后获得质押证明代币 shares,至于质押什么作用也不去深究了,反正凭借质押证明 shares 就可以取回质押的 ETH,大概就是这么个背景
+
+#### 漏洞
+
+![EFVault_withdraw()](<images/EFVault_withdraw().jpeg>)
+
+咋一看,这 withdraw()都带了 nonReentrant 重入锁了,还哪来的重入攻击?
+
+真正的问题在于开发者可能认为加了重入锁就安全了,所以放心的就把 shares 的更改写到了 controller 转账的后面,也就是要取回质押资产,是 controller 先转资产,再更改取回的资产证明 shares
+
+看似没问题,因为带了重入锁,攻击者没法通过 receiver() 重复进入来多次取回质押款
+
+但问题就在于资产证明 shares 是 token 来的,攻击者可以通过 receiver() 来转移 shares,从而达到多次取款的目的
+
+**攻击流程:**
+
+1. 调用 UniswapV3 闪电贷来拉大杠杆,贷到 WETH
+2. 将 WETH 换为 ETH (EFVault 质押资产)
+3. 调用 deposit(),向 EFVault 质押所有的 ETH,并拿到质押资产证明代币 shares
+4. 调用 withdraw(),取出质押的资产,并通过 receiver() 将 shares 发送到准备好的攻击合约地址上
+5. 在攻击合约上,凭借转来的 shares 再次取出质押资产 (!!重入)
+6. 最后把闪电贷还了,攻击完成
+
+攻击过程图示:
+
+![EFVault_re-entry](images/EFVault_re-entry.jpeg)
+
+**总结:**
+
+这里的重入攻击比起平时那些不太一样,平时的重入攻击是攻击者多次调用某一函数实现的,而这里的重入攻击是依靠另一地址的调用实现的,自然常规的重入锁防不住
+
+其实只要再谨慎一点,把 shares 更新放在提款前,或者质押资产证明 shares 不是用代币实现,而是用数组记录什么的实现,这两者都能避免这种重入攻击了
 
 ## 2023-7-21 Conic Finance
 
